@@ -5,7 +5,7 @@
 
 pdfalign is a very simple tool to extract text from a pdf in a grid aligned format. This is especially useful in table extraction pipelines.
 Some use cases include invoice data extraction and pdf processing for rag systems.
-The simple algorithm that pdfalign uses is the meanshift algorithm to group text blocks together and to algin grids. In some scenarios this may produce very sparse documents / tests.
+The simple algorithm that pdfalign uses is the meanshift algorithm to group text blocks together and to align grids. In some scenarios this may produce very sparse documents / tests.
 In most cases this is however not a problem for llms to handle
 
 ## Features
@@ -24,9 +24,9 @@ pip install pdfalign
 ## Usage
 Here's a quick example on how to use PDFalign to extract grid aligned text from a PDF file:
 ```python
-from pdfalgin import align
+from pdfalign import align
 
-# Extract grid algined text from a pdf
+# Extract grid aligned text from a pdf
 # which returns a list for each pdf page
 pages = align("sample.pdf", force_tesseract=False, tesseract_params=None)
 
