@@ -46,6 +46,6 @@ img = Image("sample.jpg")
 # which returns a list of Table objects
 text, dataframe = align(img)
 ```
-
+You may refer to [tutorial](samples/tutorial.ipynb) for more details
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
