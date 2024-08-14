@@ -1,4 +1,6 @@
 # pdfalign
+[![PyPI](https://img.shields.io/pypi/v/pdfalign.svg)](https://pypi.org/project/pdfalign/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/pdfalign)](https://img.shields.io/pypi/dm/pdfalign)
 ![GitHub](https://img.shields.io/github/license/y-hesse/pdfalign.svg)
 
 pdfalign is a very simple tool to extract text from a pdf in a grid aligned format. This is especially useful in table extraction pipelines.
@@ -22,15 +24,15 @@ pip install pdfalign
 ## Usage
 Here's a quick example on how to use PDFalign to extract grid aligned text from a PDF file:
 ```python
-from pdfalgin import algin
+from pdfalgin import align
 
 # Extract grid algined text from a pdf
 # which returns a list for each pdf page
 pages = algin("sample.pdf", force_tesseract=False, tesseract_params=None)
 
 for page in pages:
-    print(page.text)
-    print(page.dataframe)
+    print(page['text'])
+    print(page['dataframe'])
 
 ```
 If you want to use an `Image` you have to make sure that `pytesseract` is installed. Here is the code for that:
