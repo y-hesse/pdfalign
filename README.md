@@ -28,7 +28,7 @@ from pdfalgin import align
 
 # Extract grid algined text from a pdf
 # which returns a list for each pdf page
-pages = algin("sample.pdf", force_tesseract=False, tesseract_params=None)
+pages = align("sample.pdf", force_tesseract=False, tesseract_params=None)
 
 for page in pages:
     print(page['text'])
@@ -37,14 +37,14 @@ for page in pages:
 ```
 If you want to use an `Image` you have to make sure that `pytesseract` is installed. Here is the code for that:
 ```python
-from pdfalgin import algin
+from pdfalign import align
 
 # Initialize an Image object
 img = Image("sample.jpg")
 
 # Extract all tables from the image
 # which returns a list of Table objects
-text, dataframe = algin(img)
+text, dataframe = align(img)
 ```
 
 ## License
