@@ -1,7 +1,7 @@
 '''
 
 Author: Yannik Hesse
-Github:
+Github: https://github.com/y-hesse/pdfalign
 Date: 14.08.2024 
 
 '''
@@ -19,6 +19,21 @@ try:
     from pytesseract import Output
 except ImportError:
     TESSERACT_AVAIL = False
+
+class EmptyPageException(Exception):
+  """
+  Custom exception raised when a page is empty.
+
+  Attributes:
+    page_number -- the page number that was empty
+    message -- explanation of the error
+  """
+
+  def __init__(self, page_number, message="Page is empty."):
+    self.page_number = page_number
+    self.message = message
+    super().__init__(self.message)
+
 
 def f1(x,y):
     return np.abs(x-y)
@@ -75,6 +90,11 @@ def table2string(tab):
 def get_pages_text(pymupdf_page):
     d = pymupdf_page.get_text("words")
     out = pd.DataFrame(d)
+
+    if len(out) == 0:
+        # no content on page found
+        raise EmptyPageException(pymupdf_page.number, "Page is empty.")
+
     out['left'] = out[0]
     out['top'] = out[3]
     out['text'] = out[4]
@@ -100,6 +120,10 @@ def get_pages_tesseract(img, tesseract_params=None):
     d = pytesseract.image_to_data(img, output_type=Output.DICT, **tesseract_params)
     out = pd.DataFrame(d)
 
+    if len(out) == 0:
+        # no content on page found
+        raise EmptyPageException(-1, "Page is empty.")
+
     return get_numpy_table(out)
     
 
@@ -122,12 +146,15 @@ def align(input_path: str, force_tesseract: bool = False, tesseract_params: Opti
             doc = pymupdf.open(input_path)
             output = []
             for page in doc:
-                if (len(page.get_text()) < 100 and TESSERACT_AVAIL) or force_tesseract: # use tesseract as this page doesnt seem to contain any text
-                    img = pdf2img(page)
-                    table = get_pages_tesseract(img, tesseract_params)
-                else:
-                    table = get_pages_text(page)
-                output.append({"text": table2string(table), "dataframe": pd.DataFrame(table)})
+                try:
+                    if (len(page.get_text()) < 100 and TESSERACT_AVAIL) or force_tesseract: # use tesseract as this page doesnt seem to contain any text
+                        img = pdf2img(page)
+                        table = get_pages_tesseract(img, tesseract_params)
+                    else:
+                        table = get_pages_text(page)
+                    output.append({"text": table2string(table), "dataframe": pd.DataFrame(table)})
+                except EmptyPageException as e:
+                    output.append({"text": None, "dataframe": None})
             return output
 
         # handle file as if it is a single image
