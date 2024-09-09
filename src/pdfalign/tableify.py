@@ -7,7 +7,7 @@ Date: 14.08.2024
 '''
 
 import numpy as np
-from typing import Optional
+from typing import Optional, Tuple
 import pandas as pd
 import pymupdf
 from PIL import Image
@@ -51,7 +51,7 @@ def meanShift(x, strength=25):
             break
     return x
 
-def create_table(num, ids, strength_x = 5, strength_y = 50):
+def create_table(num, ids, strength_x = 9, strength_y = 20):
     x = meanShift(num.T[2], strength_x)
     y = meanShift(num.T[1], strength_y)
 
@@ -68,7 +68,7 @@ def create_table(num, ids, strength_x = 5, strength_y = 50):
 
     return table
 
-def get_numpy_table(ids):
+def get_numpy_table(ids, strength = (5, 50)):
     num = np.zeros((len(ids), 3))
 
     i = -1
@@ -78,7 +78,7 @@ def get_numpy_table(ids):
         num[i][1] = row.left
         num[i][2] = row.top
 
-    return create_table(num, ids)
+    return create_table(num, ids, strength[0], strength[1])
 
 def table2string(tab):
     text_out = ""
@@ -87,7 +87,7 @@ def table2string(tab):
         text_out += line + "\n"
     return text_out
 
-def get_pages_text(pymupdf_page):
+def get_pages_text(pymupdf_page, strength = (5, 50)):
     d = pymupdf_page.get_text("words")
     out = pd.DataFrame(d)
 
@@ -95,10 +95,10 @@ def get_pages_text(pymupdf_page):
         # no content on page found
         raise EmptyPageException(pymupdf_page.number, "Page is empty.")
 
-    out['left'] = out[0]
-    out['top'] = out[3]
+    out['left'] = out[0] #+ (out[2] - out[0])/2
+    out['top'] = out[3] #+ (out[1] - out[3])/2
     out['text'] = out[4]
-    table = get_numpy_table(out)
+    table = get_numpy_table(out, strength)
     
     return table
 
@@ -109,7 +109,7 @@ def pdf2img(pymupdf_page):
     img = np.array(Image.frombytes("RGB", [pix.width, pix.height], pix.samples))
     return img
 
-def get_pages_tesseract(img, tesseract_params=None):
+def get_pages_tesseract(img, tesseract_params=None, strength = (5, 50)):
     if not TESSERACT_AVAIL:
         print("pytesseract not installed, can't use tesseract")
         return []
@@ -124,10 +124,10 @@ def get_pages_tesseract(img, tesseract_params=None):
         # no content on page found
         raise EmptyPageException(-1, "Page is empty.")
 
-    return get_numpy_table(out)
+    return get_numpy_table(out, strength)
     
 
-def align(input_path: str, force_tesseract: bool = False, tesseract_params: Optional[dict] = None):
+def align(input_path: str, force_tesseract: bool = False, tesseract_params: Optional[dict] = None, strength: Optional[Tuple[int, int]] = (9, 20)):
     """
     This function is used to extract text from images or pdfs
     It uses either tesseract or pymupdf to handle pdf text extraction.
@@ -149,9 +149,9 @@ def align(input_path: str, force_tesseract: bool = False, tesseract_params: Opti
                 try:
                     if (len(page.get_text()) < 100 and TESSERACT_AVAIL) or force_tesseract: # use tesseract as this page doesnt seem to contain any text
                         img = pdf2img(page)
-                        table = get_pages_tesseract(img, tesseract_params)
+                        table = get_pages_tesseract(img, tesseract_params, strength=strength)
                     else:
-                        table = get_pages_text(page)
+                        table = get_pages_text(page, strength=strength)
                     output.append({"text": table2string(table), "dataframe": pd.DataFrame(table)})
                 except EmptyPageException as e:
                     output.append({"text": None, "dataframe": None})
