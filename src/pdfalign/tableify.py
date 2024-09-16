@@ -51,7 +51,7 @@ def meanShift(x, strength=25):
             break
     return x
 
-def create_table(num, ids, strength_x = 9, strength_y = 20):
+def create_table(num, ids, strength_x = 5, strength_y = 50, add__whitespace_supports = False):
     x = meanShift(num.T[2], strength_x)
     y = meanShift(num.T[1], strength_y)
 
@@ -65,10 +65,12 @@ def create_table(num, ids, strength_x = 9, strength_y = 20):
             if table[i, j] == 0:
                 table[i, j] = ''
             table[i, j] += ' '.join(ids.iloc[num.T[0][np.where((x == a) & (y == b))].astype(int)]['text'].tolist())
+            if add__whitespace_supports and table[i, j] == '':
+                table[i, j] = '-'
 
     return table
 
-def get_numpy_table(ids, strength = (5, 50)):
+def get_numpy_table(ids, strength = (5, 50), add__whitespace_supports=False):
     num = np.zeros((len(ids), 3))
 
     i = -1
@@ -78,38 +80,40 @@ def get_numpy_table(ids, strength = (5, 50)):
         num[i][1] = row.left
         num[i][2] = row.top
 
-    return create_table(num, ids, strength[0], strength[1])
+    return create_table(num, ids, strength[0], strength[1], add__whitespace_supports)
 
 def table2string(tab):
     text_out = ""
-    for x in tab:
+    for i, x in enumerate(tab):
         line = " ".join(x)
         text_out += line + "\n"
     return text_out
 
-def get_pages_text(pymupdf_page, strength = (5, 50)):
+def get_pages_text(pymupdf_page, strength = (5, 50), add__whitespace_supports=False):
     d = pymupdf_page.get_text("words")
+    w, h = pymupdf_page.cropbox.width, pymupdf_page.cropbox.height
     out = pd.DataFrame(d)
 
     if len(out) == 0:
         # no content on page found
         raise EmptyPageException(pymupdf_page.number, "Page is empty.")
 
-    out['left'] = out[0] #+ (out[2] - out[0])/2
-    out['top'] = out[3] #+ (out[1] - out[3])/2
+    out['left'] = (out[0] / w)*1000 #+ (out[2] - out[0])/2
+    out['top'] = (out[3] / h)*1000 #+ (out[1] - out[3])/2
     out['text'] = out[4]
-    table = get_numpy_table(out, strength)
+    table = get_numpy_table(out, strength, add__whitespace_supports)
     
     return table
 
 def pdf2img(pymupdf_page):
     zoom=5
     mat = pymupdf.Matrix(zoom, zoom)
+    w, h = pymupdf_page.cropbox.width, pymupdf_page.cropbox.height
     pix = pymupdf_page.get_pixmap(matrix = mat)
     img = np.array(Image.frombytes("RGB", [pix.width, pix.height], pix.samples))
     return img
 
-def get_pages_tesseract(img, tesseract_params=None, strength = (5, 50)):
+def get_pages_tesseract(img, tesseract_params=None, strength = (5, 50),add__whitespace_supports=False):
     if not TESSERACT_AVAIL:
         print("pytesseract not installed, can't use tesseract")
         return []
@@ -123,11 +127,14 @@ def get_pages_tesseract(img, tesseract_params=None, strength = (5, 50)):
     if len(out) == 0:
         # no content on page found
         raise EmptyPageException(-1, "Page is empty.")
+    
+    out['left'] = (out['left'] / out.iloc[0]['width'])*1000
+    out['top'] = (out['top'] / out.iloc[0]['height'])*1000
 
-    return get_numpy_table(out, strength)
+    return get_numpy_table(out, strength, add__whitespace_supports)
     
 
-def align(input_path: str, force_tesseract: bool = False, tesseract_params: Optional[dict] = None, strength: Optional[Tuple[int, int]] = (9, 20)):
+def align(input_path: str, force_tesseract: bool = False, tesseract_params: Optional[dict] = None, strength: Optional[Tuple[int, int]] = (5, 50), add__whitespace_supports: bool = False):
     """
     This function is used to extract text from images or pdfs
     It uses either tesseract or pymupdf to handle pdf text extraction.
@@ -147,11 +154,11 @@ def align(input_path: str, force_tesseract: bool = False, tesseract_params: Opti
             output = []
             for page in doc:
                 try:
-                    if (len(page.get_text()) < 100 and TESSERACT_AVAIL) or force_tesseract: # use tesseract as this page doesnt seem to contain any text
+                    if (len(page.get_text()) < 20 and TESSERACT_AVAIL) or force_tesseract: # use tesseract as this page doesnt seem to contain any text
                         img = pdf2img(page)
-                        table = get_pages_tesseract(img, tesseract_params, strength=strength)
+                        table = get_pages_tesseract(img, tesseract_params, strength=strength, add__whitespace_supports=add__whitespace_supports)
                     else:
-                        table = get_pages_text(page, strength=strength)
+                        table = get_pages_text(page, strength=strength, add__whitespace_supports=add__whitespace_supports)
                     output.append({"text": table2string(table), "dataframe": pd.DataFrame(table)})
                 except EmptyPageException as e:
                     output.append({"text": None, "dataframe": None})
@@ -163,5 +170,5 @@ def align(input_path: str, force_tesseract: bool = False, tesseract_params: Opti
         
         input_path = Image.open(input_path) 
     # we assume if a non string is passed it is most likely an image object that we can pass to pytesseract
-    table = get_pages_tesseract(input_path, tesseract_params)
+    table = get_pages_tesseract(input_path, tesseract_params=tesseract_params, add__whitespace_supports=add__whitespace_supports)
     return {"text": table2string(table), "dataframe": pd.DataFrame(table)}
